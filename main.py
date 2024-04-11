@@ -68,6 +68,7 @@ class UserUpdateHandler:
             return
 
         entity = self.user_ids[event.user_id]
+        action = "other"
         if event.online is not None:
             if event.online:
                 action = "online"
@@ -79,10 +80,8 @@ class UserUpdateHandler:
             action = "recording"
         elif event.typing:
             action = "typing"
-        else:
-            action = "other"
         async with self.db.get_connection() as con:
-            con.execute(
+            await con.execute(
                 "INSERT INTO stats VALUES ($1, $2, $3, $4, $5, $6)",
                 entity.id, entity.username, entity.first_name, entity.last_name,
                 datetime.now(timezone.utc), action
@@ -94,7 +93,7 @@ class UserUpdateHandler:
                 if until <= datetime(timezone.utc):
                     entity = self.user_ids[tgid]
                     async with self.db.get_connection() as con:
-                        con.execute(
+                        await con.execute(
                             "INSERT INTO stats VALUES ($1, $2, $3, $4, $5, $6)",
                             entity.id, entity.username, entity.first_name, entity.last_name,
                             until, "offline"
