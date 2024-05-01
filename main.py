@@ -68,14 +68,15 @@ class UserUpdateHandler:
             return
 
         entity = self.user_ids[event.user_id]
-        action = "other"
+        action = f"other: {event.action.__class__.__name__}"
         if event.online is not None:
             if event.online:
                 action = "online"
                 self.online_until[entity.id] = event.until
-            elif entity.id in self.online_until:
+            else:
                 action = "offline"
-                self.online_until.pop(entity.id)
+                if entity.id in self.online_until:
+                    self.online_until.pop(entity.id)
         elif event.recording:
             action = "recording"
         elif event.typing:
@@ -96,7 +97,7 @@ class UserUpdateHandler:
                     async with self.db.get_connection() as con:
                         await con.execute(
                             "INSERT INTO stats VALUES ($1, $2, $3, $4, $5, $6, $7)",
-                            entity.id, None, entity.username, entity.first_name,
+                            entity.id, entity.id, entity.username, entity.first_name,
                             entity.last_name, until, "offline"
                         )
                     self.online_until.pop(tgid)
@@ -116,7 +117,7 @@ async def main():
             await con.execute(
                 """CREATE TABLE IF NOT EXISTS stats (
                     user_id BIGINT NOT NULL,
-                    chat_id BIGINT,
+                    chat_id BIGINT NOT NULL,
                     username VARCHAR(32),
                     first_name VARCHAR(64),
                     last_name VARCHAR(64),
