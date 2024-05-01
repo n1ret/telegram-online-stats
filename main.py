@@ -80,23 +80,24 @@ class UserUpdateHandler:
             action = "recording"
         elif event.typing:
             action = "typing"
+
         async with self.db.get_connection() as con:
             await con.execute(
-                "INSERT INTO stats VALUES ($1, $2, $3, $4, $5, $6)",
-                entity.id, entity.username, entity.first_name, entity.last_name,
-                datetime.now(timezone.utc), action
+                "INSERT INTO stats VALUES ($1, $2, $3, $4, $5, $6, $7)",
+                entity.id, event.chat_id, entity.username, entity.first_name,
+                entity.last_name, datetime.now(timezone.utc), action
             )
 
     async def bg_online_manager(self):
         while True:
             for tgid, until in self.online_until.items():
-                if until <= datetime(timezone.utc):
+                if until <= datetime(tzinfo=timezone.utc):
                     entity = self.user_ids[tgid]
                     async with self.db.get_connection() as con:
                         await con.execute(
-                            "INSERT INTO stats VALUES ($1, $2, $3, $4, $5, $6)",
-                            entity.id, entity.username, entity.first_name, entity.last_name,
-                            until, "offline"
+                            "INSERT INTO stats VALUES ($1, $2, $3, $4, $5, $6, $7)",
+                            entity.id, None, entity.username, entity.first_name,
+                            entity.last_name, until, "offline"
                         )
                     self.online_until.pop(tgid)
 
@@ -115,6 +116,7 @@ async def main():
             await con.execute(
                 """CREATE TABLE IF NOT EXISTS stats (
                     user_id BIGINT NOT NULL,
+                    chat_id BIGINT,
                     username VARCHAR(32),
                     first_name VARCHAR(64),
                     last_name VARCHAR(64),
