@@ -1,0 +1,13 @@
+#!/bin/bash
+if [[ "$1" -eq "" ]]; then
+    echo "first script parameter must be user_id"
+    exit 1
+fi
+
+cwd=$PWD
+cd /lib/postgresql/
+sudo -u postgres psql selfbot -c "
+    SELECT * FROM stats
+    WHERE user_id = $1;
+"
+cd $cwd

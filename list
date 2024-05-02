@@ -1,0 +1,10 @@
+#!/bin/bash
+cwd=$PWD
+cd /lib/postgresql/
+watch -n 30 "sudo -u postgres psql selfbot -c \"
+    SELECT DISTINCT(username), user_id, first_name, last_name
+    FROM stats
+    WHERE action = 'typing'
+          AND user_id = chat_id;
+\""
+cd $cwd
