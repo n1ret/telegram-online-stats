@@ -64,9 +64,6 @@ class UserUpdateHandler:
         self.simulation_delay = bg_simulation_delay
         self.simulation_deviation = bg_simulation_deviation
         self.simulation_delete_delay_range = (-10, 10)
-        self.simulation_entity = await client.get_input_entity(
-            getenv("SIMULATION_ENTITY")
-        )
 
         self.online_until: dict[int, datetime] = {}
 
@@ -136,6 +133,10 @@ class UserUpdateHandler:
             ))
     
     async def __aenter__(self):
+        self.simulation_entity = await self.client.get_input_entity(
+            getenv("SIMULATION_ENTITY")
+        )
+
         self.bg_tasks = asyncio.gather(
             self.bg_online_manager(),
             self.bg_simulation()
