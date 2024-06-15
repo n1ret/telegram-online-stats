@@ -3,6 +3,7 @@ from asyncio import sleep
 from contextlib import suppress
 from datetime import datetime, timezone
 from os import getenv
+from random import randbytes, randint
 
 from asyncpg import Connection, create_pool
 from asyncpg.pool import PoolAcquireContext
@@ -50,10 +51,22 @@ async def set_online(client: TelegramClient):
 
 
 class UserUpdateHandler:
-    def __init__(self, db: DataBase, user_ids: dict[int, types.User], bg_delay: int = 120) -> None:
+    def __init__(
+        self, client: TelegramClient,
+        db: DataBase, user_ids: dict[int, types.User],
+        bg_delay: int = 120, bg_simulation_delay: int = 1200,
+        bg_simulation_deviation: int = 420
+    ) -> None:
+        self.client = client
         self.db = db
         self.user_ids = user_ids
         self.bg_delay = bg_delay
+        self.simulation_delay = bg_simulation_delay
+        self.simulation_deviation = bg_simulation_deviation
+        self.simulation_delete_delay_range = (-10, 10)
+        self.simulation_entity = await client.get_input_entity(
+            getenv("SIMULATION_ENTITY")
+        )
 
         self.online_until: dict[int, datetime] = {}
 
@@ -103,6 +116,36 @@ class UserUpdateHandler:
                     self.online_until.pop(tgid)
 
             await sleep(self.bg_delay)
+    
+    async def bg_simulation(self):
+        while True:
+            message = await self.client.send_message(
+                self.simulation_entity,
+                randbytes(8).hex().upper()
+            )
+
+            await sleep(randint(*self.simulation_delete_delay_range))
+
+            await self.client.delete_messages(
+                self.simulation_entity, message.id
+            )
+
+            await sleep(self.simulation_delay + randint(
+                -self.simulation_deviation,
+                self.simulation_deviation
+            ))
+    
+    async def __aenter__(self):
+        self.bg_tasks = asyncio.gather(
+            self.bg_online_manager(),
+            self.bg_simulation()
+        )
+
+        return self
+
+    async def __aexit__(self, *_):
+        self.bg_tasks.cancel()
+        await self.bg_tasks
 
 
 async def main():
@@ -137,13 +180,10 @@ async def main():
             
             await set_online(client)
 
-            user_update_handler = UserUpdateHandler(db, user_ids)
-            bg_task = asyncio.create_task(user_update_handler.bg_online_manager())
+            async with UserUpdateHandler(client, db, user_ids) as user_update_handler:
+                client.add_event_handler(user_update_handler, events.UserUpdate)
 
-            client.add_event_handler(user_update_handler, events.UserUpdate)
-
-            await client.run_until_disconnected()
-            await bg_task
+                await client.run_until_disconnected()
 
 
 if __name__ == "__main__":
