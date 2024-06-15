@@ -1,0 +1,20 @@
+#!/bin/bash
+cwd=$PWD
+filename="./last_check"
+if [ -f $filename ]; then
+    last_check=$(cat $filename)
+else
+    last_check="1970-01-01 00:00:00+00:00"
+fi
+
+cd /lib/postgresql/
+watch -n 30 "sudo -u postgres psql selfbot -c \"
+    SELECT DISTINCT(username), user_id, first_name, last_name
+    FROM stats
+    WHERE action = 'typing'
+          AND user_id = chat_id
+          AND datetime > '$last_check;'
+\""
+cd $cwd
+
+date --rfc-3339=seconds > $filename
