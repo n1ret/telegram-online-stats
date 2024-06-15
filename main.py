@@ -54,16 +54,17 @@ class UserUpdateHandler:
     def __init__(
         self, client: TelegramClient,
         db: DataBase, user_ids: dict[int, types.User],
-        bg_delay: int = 120, bg_simulation_delay: int = 1200,
-        bg_simulation_deviation: int = 420
+        delay: int = 120, simulation_delay: int = 1200,
+        simulation_deviation: int = 420,
+        simulation_delete_delay_range: tuple[int, int] = (3, 10)
     ) -> None:
         self.client = client
         self.db = db
         self.user_ids = user_ids
-        self.bg_delay = bg_delay
-        self.simulation_delay = bg_simulation_delay
-        self.simulation_deviation = bg_simulation_deviation
-        self.simulation_delete_delay_range = (-10, 10)
+        self.bg_delay = delay
+        self.simulation_delay = simulation_delay
+        self.simulation_deviation = simulation_deviation
+        self.simulation_delete_delay_range = simulation_delete_delay_range
 
         self.online_until: dict[int, datetime] = {}
 
@@ -134,7 +135,7 @@ class UserUpdateHandler:
     
     async def __aenter__(self):
         self.simulation_entity = await self.client.get_input_entity(
-            getenv("SIMULATION_ENTITY")
+            int(getenv("SIMULATION_ENTITY"))
         )
 
         self.bg_tasks = asyncio.gather(
