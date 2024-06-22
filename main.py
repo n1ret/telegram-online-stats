@@ -134,7 +134,7 @@ class UserUpdateHandler:
                 self.simulation_entity, message.id
             )
 
-            logging.info("Simulatied")
+            logger.info("Simulated")
 
             await sleep(self.simulation_delay + randint(
                 -self.simulation_deviation,
