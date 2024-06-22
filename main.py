@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from asyncio import sleep
 from contextlib import suppress
 from datetime import datetime, timezone
@@ -14,6 +15,9 @@ from telethon.tl.custom import Dialog
 
 load_dotenv()
 
+logging.basicConfig(level=logging.INFO, format="%(levelname)-8s[%(asctime)s] %(message)s")
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 class DBContext:
     def __init__(self, con: PoolAcquireContext) -> None:
@@ -47,7 +51,9 @@ async def set_online(client: TelegramClient):
         await sleep(5)
         retries -= 1
     if retries == 0:
-        print("Can't be online")
+        logger.info("Can't be online")
+    else:
+        logger.info("Is online")
 
 
 class UserUpdateHandler:
@@ -114,7 +120,7 @@ class UserUpdateHandler:
                     self.online_until.pop(tgid)
 
             await sleep(self.bg_delay)
-    
+
     async def bg_simulation(self):
         while True:
             message = await self.client.send_message(
@@ -127,6 +133,8 @@ class UserUpdateHandler:
             await self.client.delete_messages(
                 self.simulation_entity, message.id
             )
+
+            logging.info("Simulatied")
 
             await sleep(self.simulation_delay + randint(
                 -self.simulation_deviation,
