@@ -109,7 +109,7 @@ class UserUpdateHandler:
     async def bg_online_manager(self):
         while True:
             for tgid, until in self.online_until.items():
-                if until <= datetime(tzinfo=timezone.utc):
+                if until <= datetime.now(tzinfo=timezone.utc):
                     entity = self.user_ids[tgid]
                     async with self.db.get_connection() as con:
                         await con.execute(
