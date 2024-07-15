@@ -2,7 +2,7 @@ import asyncio
 import logging
 from asyncio import sleep
 from contextlib import suppress
-from datetime import datetime, timezone
+from datetime import datetime, time, timedelta, timezone
 from os import getenv
 from random import randbytes, randint
 
@@ -59,18 +59,20 @@ async def set_online(client: TelegramClient):
 class UserUpdateHandler:
     def __init__(
         self, client: TelegramClient,
-        db: DataBase, user_ids: dict[int, types.User],
+        db: DataBase,
         delay: int = 120, simulation_delay: int = 1200,
         simulation_deviation: int = 420,
-        simulation_delete_delay_range: tuple[int, int] = (3, 10)
+        simulation_delete_delay_range: tuple[int, int] = (3, 10),
+        dialogs_check_deviation: int = 3600
     ) -> None:
         self.client = client
         self.db = db
-        self.user_ids = user_ids
+        self.user_ids: dict[int, types.User] = {}
         self.bg_delay = delay
         self.simulation_delay = simulation_delay
         self.simulation_deviation = simulation_deviation
         self.simulation_delete_delay_range = simulation_delete_delay_range
+        self.dialogs_check_deviation = dialogs_check_deviation
 
         self.online_until: dict[int, datetime] = {}
 
@@ -109,7 +111,7 @@ class UserUpdateHandler:
     async def bg_online_manager(self):
         while True:
             for tgid, until in self.online_until.items():
-                if until <= datetime.now(tzinfo=timezone.utc):
+                if until <= datetime.now(timezone.utc):
                     entity = self.user_ids[tgid]
                     async with self.db.get_connection() as con:
                         await con.execute(
@@ -141,6 +143,27 @@ class UserUpdateHandler:
                 self.simulation_deviation
             ))
     
+    async def bg_dialogs_check(self):
+        next_check = datetime.now(timezone.utc)
+        while True:
+            if next_check <= datetime.now(timezone.utc):
+                async for dialog in self.client.iter_dialogs():
+                    dialog: Dialog
+                    if (
+                        dialog.is_user
+                        and dialog.id != (await self.client.get_me(True)).user_id
+                    ):
+                        self.user_ids[dialog.id] = dialog.entity
+                
+                next_check = datetime.combine(
+                    datetime.now(timezone.utc).date + timedelta(1),
+                    time(0, 0) + timedelta(seconds=randint(
+                        -self.dialogs_check_deviation,
+                        self.dialogs_check_deviation
+                    ))
+                )
+            await sleep(self.bg_delay)
+
     async def __aenter__(self):
         self.simulation_entity = await self.client.get_input_entity(
             int(getenv("SIMULATION_ENTITY"))
@@ -148,7 +171,8 @@ class UserUpdateHandler:
 
         self.bg_tasks = asyncio.gather(
             self.bg_online_manager(),
-            self.bg_simulation()
+            self.bg_simulation(),
+            self.bg_dialogs_check()
         )
 
         return self
@@ -182,15 +206,9 @@ async def main():
         async with TelegramClient("account", getenv("API_ID"), getenv("API_HASH")) as client:
             client: TelegramClient
 
-            user_ids = {}
-            async for dialog in client.iter_dialogs():
-                dialog: Dialog
-                if dialog.is_user and dialog.id != (await client.get_me(True)).user_id:
-                    user_ids[dialog.id] = dialog.entity
-            
             await set_online(client)
 
-            async with UserUpdateHandler(client, db, user_ids) as user_update_handler:
+            async with UserUpdateHandler(client, db) as user_update_handler:
                 client.add_event_handler(user_update_handler, events.UserUpdate)
 
                 await client.run_until_disconnected()
