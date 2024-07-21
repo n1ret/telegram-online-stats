@@ -8,6 +8,7 @@ cwd=$PWD
 cd /lib/postgresql/
 sudo -u postgres psql selfbot -c "
     SELECT * FROM stats
-    WHERE user_id = $1 AND user_id = chat_id AND action = 'typing';
+    WHERE user_id = $1 AND user_id = chat_id AND action = 'typing'
+    ORDER BY datetime;
 "
 cd $cwd

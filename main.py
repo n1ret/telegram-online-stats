@@ -15,7 +15,9 @@ from telethon.tl.custom import Dialog
 
 load_dotenv()
 
-logging.basicConfig(level=logging.INFO, format="%(levelname)-8s[%(asctime)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(levelname)-8s[%(asctime)s] %(message)s"
+)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -203,7 +205,9 @@ async def main():
                 )"""
             )
 
-        async with TelegramClient("account", getenv("API_ID"), getenv("API_HASH")) as client:
+        async with (
+            TelegramClient("account", getenv("API_ID"), getenv("API_HASH")) as client
+        ):
             client: TelegramClient
 
             await set_online(client)
